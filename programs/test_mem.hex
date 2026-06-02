@@ -1,0 +1,10 @@
+// test_mem.hex - memory.vhd loader testi icin ornek bellek
+// Her satir 32-bit bir word (8 hex hane). // ile baslayan satirlar atlanir.
+// word 0 (byte adresi 0)
+deadbeef
+// word 1 (byte adresi 4)
+00000005
+// word 2 (byte adresi 8)
+0000000a
+// word 3 (byte adresi 12)
+cafebabe
