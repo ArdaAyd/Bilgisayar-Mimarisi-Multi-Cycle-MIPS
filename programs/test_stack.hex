@@ -1,0 +1,11 @@
+// MIPS Assembler çıktısı — 9 komut
+// $readmemh ile yükle: $readmemh("programs/test_stack.hex", mem);
+441d0190
+4408000b
+44090016
+0109002d
+4d000000
+4d200000
+500a0000
+500b0000
+08000008

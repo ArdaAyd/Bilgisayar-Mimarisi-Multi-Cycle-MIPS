@@ -85,6 +85,10 @@ architecture Behavioral of datapath is
     signal reg_rdata2  : STD_LOGIC_VECTOR(31 downto 0);
     signal write_reg   : STD_LOGIC_VECTOR(4 downto 0);
     signal write_data  : STD_LOGIC_VECTOR(31 downto 0);
+    signal read_reg1_m : STD_LOGIC_VECTOR(4 downto 0);   -- reg1_sel sonrası
+    signal read_reg2_m : STD_LOGIC_VECTOR(4 downto 0);   -- reg2_sel sonrası
+
+    constant SP_REG : STD_LOGIC_VECTOR(4 downto 0) := "11101";  -- $sp = $29
 
     -- Ara register'lar
     signal A_out       : STD_LOGIC_VECTOR(31 downto 0);
@@ -134,8 +138,12 @@ begin
                    alu_result   when others;
 
     -- ══ Bellek ═══════════════════════════════════════════════════════════════
-    -- IorD MUX: bellek adresi PC'den mi (komut) yoksa ALUOut'tan mı (veri)?
-    mem_addr <= pc_out when ior_d = '0' else alu_out_reg;
+    -- IorD MUX: bellek adresi kaynağı
+    with ior_d select
+        mem_addr <= pc_out      when "00",   -- komut çek (PC)
+                    alu_out_reg when "01",   -- lw/sw verisi (efektif adres)
+                    A_out       when "10",   -- pop: adres = $sp (A'da)
+                    pc_out      when others;
 
     MEM_INST: entity work.memory
         generic map ( INIT_FILE => INIT_FILE )
@@ -171,17 +179,32 @@ begin
         port map ( clk => clk, en => '1', d => mem_rdata, q => mdr_out );
 
     -- ══ Register File ════════════════════════════════════════════════════════
-    -- RegDst MUX: yazılacak register rt mi (I-type) rd mi (R-type/ADDI3)?
-    write_reg  <= ir_rt when reg_dst = '0' else ir_rd;
-    -- MemToReg MUX: geri yazılacak veri ALU sonucu mu bellekten mi?
-    write_data <= alu_out_reg when mem_to_reg = '0' else mdr_out;
+    -- Okuma portu MUX'ları (push/pop/swap için)
+    read_reg1_m <= ir_rs when reg1_sel = '0' else SP_REG;   -- 1=$sp
+    read_reg2_m <= ir_rt when reg2_sel = '0' else ir_rs;    -- 1=rs (push verisi)
+
+    -- RegDst MUX: yazılacak register
+    with reg_dst select
+        write_reg <= ir_rt  when "00",   -- I-type
+                     ir_rd  when "01",   -- R-type / ADDI3
+                     SP_REG when "10",   -- push/pop: $sp güncelle
+                     ir_rs  when "11",   -- swap: rs'e yaz
+                     ir_rt  when others;
+
+    -- MemToReg MUX: geri yazılacak veri
+    with mem_to_reg select
+        write_data <= alu_out_reg when "00",   -- ALU sonucu
+                      mdr_out     when "01",   -- bellekten (lw/pop)
+                      A_out       when "10",   -- swap: A'yı rt'ye yaz
+                      B_out       when "11",   -- swap: B'yi rs'e yaz
+                      alu_out_reg when others;
 
     RF_INST: entity work.register_file
         port map (
             clk        => clk,
             reg_write  => reg_write,
-            read_reg1  => ir_rs,
-            read_reg2  => ir_rt,
+            read_reg1  => read_reg1_m,
+            read_reg2  => read_reg2_m,
             write_reg  => write_reg,
             write_data => write_data,
             read_data1 => reg_rdata1,

@@ -37,9 +37,11 @@ architecture Structural of cpu is
     signal reg_write  : STD_LOGIC;
     signal mem_read   : STD_LOGIC;
     signal mem_write  : STD_LOGIC;
-    signal ior_d      : STD_LOGIC;
-    signal mem_to_reg : STD_LOGIC;
-    signal reg_dst    : STD_LOGIC;
+    signal ior_d      : STD_LOGIC_VECTOR(1 downto 0);
+    signal mem_to_reg : STD_LOGIC_VECTOR(1 downto 0);
+    signal reg_dst    : STD_LOGIC_VECTOR(1 downto 0);
+    signal reg1_sel   : STD_LOGIC;
+    signal reg2_sel   : STD_LOGIC;
     signal alu_src_a  : STD_LOGIC_VECTOR(1 downto 0);
     signal alu_src_b  : STD_LOGIC_VECTOR(2 downto 0);
     signal pc_source  : STD_LOGIC_VECTOR(1 downto 0);
@@ -62,6 +64,7 @@ begin
             clk        => clk,
             reset      => reset,
             opcode     => opcode,
+            funct      => funct,
             zero       => zero,
             neg        => neg,
             pc_write   => pc_write,
@@ -72,6 +75,8 @@ begin
             ior_d      => ior_d,
             mem_to_reg => mem_to_reg,
             reg_dst    => reg_dst,
+            reg1_sel   => reg1_sel,
+            reg2_sel   => reg2_sel,
             alu_src_a  => alu_src_a,
             alu_src_b  => alu_src_b,
             pc_source  => pc_source,
@@ -101,6 +106,8 @@ begin
             ior_d      => ior_d,
             mem_to_reg => mem_to_reg,
             reg_dst    => reg_dst,
+            reg1_sel   => reg1_sel,
+            reg2_sel   => reg2_sel,
             alu_src_a  => alu_src_a,
             alu_src_b  => alu_src_b,
             pc_source  => pc_source,
