@@ -1,0 +1,13 @@
+// MIPS Assembler çıktısı — 11 komut
+// $readmemh ile yükle: $readmemh("programs/test_itype.hex", mem);
+4408000c
+29090014
+290a0005
+290b000c
+310c000a
+350d0003
+390e000a
+440ffffd
+29f00000
+29f1fffb
+0800000a

@@ -1,0 +1,17 @@
+// MIPS Assembler çıktısı — 15 komut
+// $readmemh ile yükle: $readmemh("programs/test_boundary.hex", mem);
+44087530
+0108482c
+01295020
+01495820
+440c03fc
+440d3039
+ad8d0000
+8d8e0000
+440f0000
+11ef0003
+44100063
+44100058
+4410004d
+44100007
+0800000e
