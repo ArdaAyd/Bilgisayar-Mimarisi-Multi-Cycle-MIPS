@@ -1,0 +1,38 @@
+# ── macOS ──
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Python (assembler) ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── ModelSim / Questa simülasyon çıktıları ──
+work/
+transcript
+vsim.wlf
+*.wlf
+vsim_stacktrace.vstack
+vish_stacktrace.vstack
+modelsim.ini
+*.mti
+*.mpf
+.modelsim
+wlf*
+*.vstf
+
+# ── Editör / geçici dosyalar ──
+*.bak
+*.swp
+*.tmp
+*~
+.vscode/
+.idea/
+
+# ── Office geçici dosyaları ──
+~$*.docx
+~$*.pdf
