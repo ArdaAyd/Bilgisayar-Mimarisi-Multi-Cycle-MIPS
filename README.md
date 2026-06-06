@@ -41,11 +41,31 @@ VHDL ile tasarlanmış, sonlu durum makinesi (FSM) tarafından denetlenen **çok
          (tek bellek, IorD MUX ile komut/veri paylaşımı; tek ALU yeniden kullanılır)
 ```
 
+### Veri Yolu (Datapath)
+
+Siyah bileşenler standart MIPS datapath'i, **kırmızı** ile vurgulananlar bu proje kapsamında 7 özel komut için eklenen birim ve yolları gösterir (`Reg1Sel`/`Reg2Sel` MUX, `IorD=$sp`, `RegDst=$sp`, ALUOut geri besleme, `SignExt11`).
+
+![Multi-cycle MIPS veri yolu](images/datapath.png)
+
 - **Veri yolu** standart Patterson–Hennessy çok çevrimli MIPS datapath'i temel alır; 7 özel komut için eklenen yollar: `Reg1Sel`/`Reg2Sel` MUX (yığın için `$sp` seçimi), `IorD=$sp`, `RegDst=$sp`, ALUOut geri besleme (`addi3`), 11-bit işaret genişletme (`signext11`).
 - **`alu_control`** 2-bit `alu_op` ile çalışır: `00`=ADD zorla, `01`=SUB zorla, `10`=opcode/funct'tan çöz.
 - **Dallanma koşulları** denetimde `zero`/`neg` ile: `beq = zero`, `bne = not zero`, `bgt = (not zero) and (not neg)`.
 
 > **Tasarım notu (anlık değer):** Bu tasarımda tüm I-type komutlar (`andi`/`ori`/`xori` dâhil) tek bir 16-bit **işaret genişletme** yolu kullanır. Standart MIPS'te mantıksal komutlar sıfır-genişletir; donanımı sadeleştirmek için işaret-genişletme tercih edilmiştir. Fark yalnızca en yüksek biti 1 olan anlık değerlerde ortaya çıkar.
+
+### Denetim Birimi (FSM, 23 durum)
+
+**Getirme ve çözme:** `FETCH → DECODE` sonrası komut tipine göre ilgili yürütme durumuna dallanılır.
+
+![FSM — getirme ve çözme](images/fsm_fetch_decode.png)
+
+**Standart komutların tamamlanması:** R-type/I-type geri yazma (WB), `lw`/`sw` bellek erişimi, `branch`/`jump` doğrudan `FETCH`'e döner.
+
+![FSM — standart komut tamamlama](images/fsm_completion.png)
+
+**Özel komutların durum geçişleri:** `addi3` iki ALU çevrimi sonrası yazar; `swap` iki ardışık yazmayla takası tamamlar; `push`/`pop` adres → bellek → `$sp` adımlarını izler.
+
+![FSM — özel komutlar](images/fsm_new_instructions.png)
 
 ---
 
@@ -175,6 +195,10 @@ run -all
 | `tb_boundary` | 32-bit overflow, bellek sınırı (word 255), ileri dallanma |
 | `tb_edge`     | $0 koruması, negatif immediate, işaretli aritmetik, iç içe yığın |
 | `tb_master`   | Dizi + toplam/maksimum döngüsü + tüm komutlar (bütünleşme) |
+
+`tb_master` bütünleşme testinin ModelSim dalga biçimi (reset sonrası PC sıfırdan başlar, her komut doğru çevrim sayısında ilerler, 18 register doğrulanır — hata yok):
+
+![tb_master dalga biçimi](images/waveform_master.png)
 
 ---
 
