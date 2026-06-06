@@ -1,11 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Datapath — tüm modülleri MUX'larla bağlayan veri yolu
 -- ───────────────────────────────────────────────────────────────────────────
--- Hesap YAPMAZ; veriyi doğru yere yönlendirir. "Hangi veri nereye" kararını
--- dışarıdan gelen KONTROL SİNYALLERİ verir (Faz 4'te control_unit üretecek).
---
--- İçindeki modüller: PC, Memory, IR, Register File, ALU + ara register'lar
--- (A, B, ALUOut, MDR). Bunlar Faz 2'de tek tek yazılıp test edildi.
+-- Hesap yapmaz; veriyi doğru yere yönlendirir. "Hangi veri nereye" kararını
+-- dışarıdan gelen kontrol sinyalleri verir. İçinde PC, Memory, IR, Register
+-- File, ALU ve ara register'lar (A, B, ALUOut, MDR) bulunur.
 --
 -- MUX'lar (kontrol sinyali → seçenekler):
 --   IorD      ior_d        0=PC               1=ALUOut
@@ -14,7 +12,6 @@
 --   ALUSrcA   alu_src_a    00=PC  01=A        10=ALUOut (ADDI3 geri besleme)
 --   ALUSrcB   alu_src_b    000=B 001=4 010=sx16 011=sx16<<2 100=sx11 (ADDI3)
 --   PCSource  pc_source    00=ALU sonucu(PC+4) 01=ALUOut(branch) 10=jump
---
 -- A,B,ALUOut,MDR her saykıl yüklenir (en='1' sabit) — standart multi-cycle.
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -24,13 +21,13 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity datapath is
     generic (
-        INIT_FILE : string := ""    -- belleğe yüklenecek program (hex)
+        INIT_FILE : string := ""
     );
     Port (
         clk        : in  STD_LOGIC;
         reset      : in  STD_LOGIC;
 
-        -- ── Kontrol sinyalleri (control_unit'ten gelecek) ──
+        -- Kontrol sinyalleri (control_unit'ten)
         pc_write   : in  STD_LOGIC;
         ir_write   : in  STD_LOGIC;
         reg_write  : in  STD_LOGIC;
@@ -46,13 +43,13 @@ entity datapath is
         pc_source  : in  STD_LOGIC_VECTOR(1 downto 0);
         alu_ctrl   : in  STD_LOGIC_VECTOR(3 downto 0);
 
-        -- ── Durum bilgisi (control_unit'e gider) ──
+        -- Durum bilgisi (control_unit'e)
         opcode     : out STD_LOGIC_VECTOR(5 downto 0);
         funct      : out STD_LOGIC_VECTOR(5 downto 0);
         zero       : out STD_LOGIC;
         neg        : out STD_LOGIC;
 
-        -- ── Hata ayıklama / gözlem için ──
+        -- Gözlem portları
         dbg_reg    : in  STD_LOGIC_VECTOR(4 downto 0)  := (others => '0');
         dbg_data   : out STD_LOGIC_VECTOR(31 downto 0);
         pc_debug   : out STD_LOGIC_VECTOR(31 downto 0);
@@ -62,7 +59,6 @@ end datapath;
 
 architecture Behavioral of datapath is
 
-    -- ── İç sinyaller ─────────────────────────────────────────────────────────
     signal pc_out      : STD_LOGIC_VECTOR(31 downto 0);
     signal pc_next     : STD_LOGIC_VECTOR(31 downto 0);
 
@@ -85,8 +81,8 @@ architecture Behavioral of datapath is
     signal reg_rdata2  : STD_LOGIC_VECTOR(31 downto 0);
     signal write_reg   : STD_LOGIC_VECTOR(4 downto 0);
     signal write_data  : STD_LOGIC_VECTOR(31 downto 0);
-    signal read_reg1_m : STD_LOGIC_VECTOR(4 downto 0);   -- reg1_sel sonrası
-    signal read_reg2_m : STD_LOGIC_VECTOR(4 downto 0);   -- reg2_sel sonrası
+    signal read_reg1_m : STD_LOGIC_VECTOR(4 downto 0);
+    signal read_reg2_m : STD_LOGIC_VECTOR(4 downto 0);
 
     constant SP_REG : STD_LOGIC_VECTOR(4 downto 0) := "11101";  -- $sp = $29
 
@@ -103,24 +99,19 @@ architecture Behavioral of datapath is
     signal alu_zero    : STD_LOGIC;
 
     -- Yardımcı kombinasyonel değerler
-    signal signext16   : STD_LOGIC_VECTOR(31 downto 0);  -- 16-bit imm işaretli
-    signal signext16_sh: STD_LOGIC_VECTOR(31 downto 0);  -- (sx16 << 2) branch
-    signal signext11   : STD_LOGIC_VECTOR(31 downto 0);  -- 11-bit imm (ADDI3)
+    signal signext16   : STD_LOGIC_VECTOR(31 downto 0);
+    signal signext16_sh: STD_LOGIC_VECTOR(31 downto 0);
+    signal signext11   : STD_LOGIC_VECTOR(31 downto 0);
     signal jump_addr   : STD_LOGIC_VECTOR(31 downto 0);
 
 begin
 
-    -- ══ İşaret genişletme (sign-extend) ve kaydırma — kombinasyonel ══════════
-    -- 16-bit immediate'ı 32 bite işaretli genişlet (resize signed = sign-extend).
+    -- İşaret genişletme ve kaydırma (kombinasyonel)
     signext16    <= std_logic_vector(resize(signed(ir_imm), 32));
-    -- Branch hedefi için (PC+4)+ofset<<2: sign-extend edilmiş değeri 2 sola kaydır.
-    signext16_sh <= signext16(29 downto 0) & "00";
-    -- ADDI3'ün 11-bit immediate'ını işaretli genişlet (ir_imm'in alt 11 biti).
-    signext11    <= std_logic_vector(resize(signed(ir_imm(10 downto 0)), 32));
-    -- Jump hedefi: PC'nin üst 4 biti & (26-bit adres << 2).  (adres = hedef>>2)
+    signext16_sh <= signext16(29 downto 0) & "00";                          -- imm<<2 (branch)
+    signext11    <= std_logic_vector(resize(signed(ir_imm(10 downto 0)), 32));  -- ADDI3
     jump_addr    <= pc_out(31 downto 28) & ir_addr & "00";
 
-    -- ══ PC ═══════════════════════════════════════════════════════════════════
     PC_INST: entity work.pc
         port map (
             clk      => clk,
@@ -132,16 +123,15 @@ begin
 
     -- PCSource MUX: PC'ye ne yazılacak?
     with pc_source select
-        pc_next <= alu_result   when "00",   -- IF'te PC+4 (ALU sonucu doğrudan)
-                   alu_out_reg  when "01",   -- branch hedefi (ID'de hesaplanıp saklandı)
+        pc_next <= alu_result   when "00",   -- IF'te PC+4
+                   alu_out_reg  when "01",   -- branch hedefi (ID'de saklandı)
                    jump_addr    when "10",   -- jump
                    alu_result   when others;
 
-    -- ══ Bellek ═══════════════════════════════════════════════════════════════
     -- IorD MUX: bellek adresi kaynağı
     with ior_d select
         mem_addr <= pc_out      when "00",   -- komut çek (PC)
-                    alu_out_reg when "01",   -- lw/sw verisi (efektif adres)
+                    alu_out_reg when "01",   -- lw/sw efektif adres
                     A_out       when "10",   -- pop: adres = $sp (A'da)
                     pc_out      when others;
 
@@ -156,7 +146,6 @@ begin
             read_data  => mem_rdata
         );
 
-    -- ══ Instruction Register ═════════════════════════════════════════════════
     IR_INST: entity work.instruction_register
         port map (
             clk       => clk,
@@ -173,13 +162,11 @@ begin
             instr_out => ir_full
         );
 
-    -- ══ MDR (Memory Data Register) ═══════════════════════════════════════════
-    -- Bellekten okunan veriyi WB saykılına taşır (lw/pop). Her saykıl yüklenir.
+    -- MDR: bellekten okunan veriyi WB saykılına taşır (lw/pop)
     MDR_INST: entity work.simple_register
         port map ( clk => clk, en => '1', d => mem_rdata, q => mdr_out );
 
-    -- ══ Register File ════════════════════════════════════════════════════════
-    -- Okuma portu MUX'ları (push/pop/swap için)
+    -- Register file okuma portu MUX'ları (push/pop/swap için)
     read_reg1_m <= ir_rs when reg1_sel = '0' else SP_REG;   -- 1=$sp
     read_reg2_m <= ir_rt when reg2_sel = '0' else ir_rs;    -- 1=rs (push verisi)
 
@@ -213,17 +200,15 @@ begin
             dbg_data   => dbg_data
         );
 
-    -- ══ A ve B ara register'ları ═════════════════════════════════════════════
-    -- ID saykılında register file'dan okunan değerleri saklar. Her saykıl yüklenir.
+    -- A ve B: ID saykılında okunan register değerlerini saklar
     A_INST: entity work.simple_register
         port map ( clk => clk, en => '1', d => reg_rdata1, q => A_out );
     B_INST: entity work.simple_register
         port map ( clk => clk, en => '1', d => reg_rdata2, q => B_out );
 
-    -- ══ ALU ══════════════════════════════════════════════════════════════════
     -- ALUSrcA MUX: 1. operand
     with alu_src_a select
-        alu_a <= pc_out      when "00",   -- PC (PC+4 ve branch hedefi tabanı)
+        alu_a <= pc_out      when "00",   -- PC
                  A_out       when "01",   -- register operandı (rs)
                  alu_out_reg when "10",   -- ADDI3: önceki ALUOut'u geri besle
                  (others => '0') when others;
@@ -231,10 +216,10 @@ begin
     -- ALUSrcB MUX: 2. operand
     with alu_src_b select
         alu_b <= B_out          when "000",  -- register operandı (rt)
-                 x"00000004"    when "001",  -- sabit 4 (PC+4 için)
-                 signext16      when "010",  -- 16-bit işaretli imm (addi, lw, sw)
+                 x"00000004"    when "001",  -- sabit 4 (PC+4)
+                 signext16      when "010",  -- 16-bit imm (addi, lw, sw)
                  signext16_sh   when "011",  -- imm<<2 (branch hedefi)
-                 signext11      when "100",  -- 11-bit işaretli imm (ADDI3)
+                 signext11      when "100",  -- 11-bit imm (ADDI3)
                  (others => '0') when others;
 
     ALU_INST: entity work.alu
@@ -246,17 +231,16 @@ begin
             zero     => alu_zero
         );
 
-    -- ALUOut register'ı: ALU sonucunu sonraki saykıla taşır. Her saykıl yüklenir.
+    -- ALUOut: ALU sonucunu sonraki saykıla taşır
     ALUOUT_INST: entity work.simple_register
         port map ( clk => clk, en => '1', d => alu_result, q => alu_out_reg );
 
-    -- ══ Durum çıkışları (control_unit'e) ═════════════════════════════════════
+    -- Durum çıkışları (control_unit'e)
     opcode <= ir_opcode;
     funct  <= ir_funct;
     zero   <= alu_zero;
     neg    <= alu_result(31);   -- sonuç negatif mi (bgt için)
 
-    -- ══ Hata ayıklama çıkışları ══════════════════════════════════════════════
     pc_debug    <= pc_out;
     instr_debug <= ir_full;
 

@@ -1,13 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- CPU — üst seviye: datapath + control_unit + alu_control'ü birbirine bağlar
 -- ───────────────────────────────────────────────────────────────────────────
--- Bağlantı şeması:
---   control_unit  → kontrol sinyalleri (mux/enable) + alu_op  → datapath
---   datapath      → opcode, funct, zero, neg                  → control/alu_control
---   alu_control   → alu_op + opcode + funct → alu_ctrl        → datapath
---
+--   control_unit → kontrol sinyalleri + alu_op        → datapath
+--   datapath     → opcode, funct, zero, neg           → control/alu_control
+--   alu_control  → alu_op + opcode + funct → alu_ctrl → datapath
 -- INIT_FILE: belleğe yüklenecek programın hex dosyası.
--- dbg_reg/dbg_data: testbench'in register içeriğini gözlemlemesi için.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 library IEEE;
@@ -21,7 +18,7 @@ entity cpu is
         clk        : in  STD_LOGIC;
         reset      : in  STD_LOGIC;
 
-        -- ── Gözlem için ──
+        -- Gözlem (testbench) portları
         dbg_reg    : in  STD_LOGIC_VECTOR(4 downto 0)  := (others => '0');
         dbg_data   : out STD_LOGIC_VECTOR(31 downto 0);
         pc_debug   : out STD_LOGIC_VECTOR(31 downto 0);
@@ -53,12 +50,10 @@ architecture Structural of cpu is
     signal zero       : STD_LOGIC;
     signal neg        : STD_LOGIC;
 
-    -- alu_control → datapath
     signal alu_ctrl   : STD_LOGIC_VECTOR(3 downto 0);
 
 begin
 
-    -- ══ Kontrol birimi (FSM) ═════════════════════════════════════════════════
     CTRL: entity work.control_unit
         port map (
             clk        => clk,
@@ -83,7 +78,6 @@ begin
             alu_op     => alu_op
         );
 
-    -- ══ ALU kontrol (alu_op + opcode + funct → alu_ctrl) ═════════════════════
     ALUCTRL: entity work.alu_control
         port map (
             alu_op   => alu_op,
@@ -92,7 +86,6 @@ begin
             alu_ctrl => alu_ctrl
         );
 
-    -- ══ Veri yolu ════════════════════════════════════════════════════════════
     DP: entity work.datapath
         generic map ( INIT_FILE => INIT_FILE )
         port map (

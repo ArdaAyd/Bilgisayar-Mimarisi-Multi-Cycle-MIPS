@@ -1,15 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- simple_register — genel amaçlı 32-bit ara saklama register'ı
 -- ───────────────────────────────────────────────────────────────────────────
--- Multi-cycle datapath'te bir saykılda üretilen değeri sonraki saykıla taşımak
--- için kullanılır. Örnekler:
---   A, B    : register file'dan okunan operandlar (EX saykılında ALU'ya gider)
---   ALUOut  : ALU sonucu (MEM/WB saykılında kullanılır)
---   MDR     : bellekten okunan veri (WB saykılında register'a yazılır)
---
---   en='1'  → girişteki değeri (d) yükle
---   en='0'  → mevcut değeri KORU
---
+-- Bir saykılda üretilen değeri sonraki saykıla taşımak için kullanılır
+-- (A, B operandları, ALUOut, MDR). en='1' iken yükler, en='0' iken korur.
 -- Senkron: yükleme clock'un yükselen kenarında olur.
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -19,9 +12,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 entity simple_register is
     Port (
         clk : in  STD_LOGIC;
-        en  : in  STD_LOGIC;                         -- '1' → yükle, '0' → koru
-        d   : in  STD_LOGIC_VECTOR(31 downto 0);     -- giriş (data in)
-        q   : out STD_LOGIC_VECTOR(31 downto 0)      -- çıkış (saklanan değer)
+        en  : in  STD_LOGIC;
+        d   : in  STD_LOGIC_VECTOR(31 downto 0);
+        q   : out STD_LOGIC_VECTOR(31 downto 0)
     );
 end simple_register;
 
@@ -35,7 +28,6 @@ begin
             if en = '1' then
                 reg <= d;
             end if;
-            -- en='0' ise reg değişmez → değer korunur
         end if;
     end process;
 

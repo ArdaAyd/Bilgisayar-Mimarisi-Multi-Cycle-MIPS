@@ -1,15 +1,12 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- ALU Control — opcode/funct'tan ALU'nun 4-bit işlem kodunu (alu_ctrl) üretir
 -- ───────────────────────────────────────────────────────────────────────────
--- control_unit 2-bit bir 'alu_op' ipucu verir; bu modül asıl 4-bit alu_ctrl'ü
--- çözer. Bu ayrım sayesinde control_unit FSM'i her R-type funct'ını bilmek
--- zorunda kalmaz — "alu_op=10, sen funct'tan çöz" der.
---
+-- control_unit 2-bit 'alu_op' ipucu verir; bu modül 4-bit alu_ctrl'ü çözer.
+-- Böylece FSM her R-type funct'ını bilmek zorunda kalmaz.
 --   alu_op = "00" → ADD'e zorla  (PC+4, branch hedefi, lw/sw adres, ADDI3)
 --   alu_op = "01" → SUB'a zorla  (beq/bne/bgt karşılaştırması)
 --   alu_op = "10" → komuta bak   (R-type→funct, I-type aritmetik→opcode)
---
--- Kombinasyonel devre. Çıkış kodları alu.vhd ile AYNI olmak zorunda (sözleşme).
+-- Çıkış kodları alu.vhd ile AYNI olmak zorunda (sözleşme).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 library IEEE;
@@ -17,10 +14,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity alu_control is
     Port (
-        alu_op   : in  STD_LOGIC_VECTOR(1 downto 0);   -- control_unit ipucu
-        opcode   : in  STD_LOGIC_VECTOR(5 downto 0);   -- IR opcode alanı
-        funct    : in  STD_LOGIC_VECTOR(5 downto 0);   -- IR funct alanı (R-type)
-        alu_ctrl : out STD_LOGIC_VECTOR(3 downto 0)    -- ALU'ya işlem kodu
+        alu_op   : in  STD_LOGIC_VECTOR(1 downto 0);
+        opcode   : in  STD_LOGIC_VECTOR(5 downto 0);
+        funct    : in  STD_LOGIC_VECTOR(5 downto 0);
+        alu_ctrl : out STD_LOGIC_VECTOR(3 downto 0)
     );
 end alu_control;
 
@@ -43,7 +40,6 @@ architecture Behavioral of alu_control is
     constant F_XOR  : STD_LOGIC_VECTOR(5 downto 0) := "100110";  -- 0x26
     constant F_SLT  : STD_LOGIC_VECTOR(5 downto 0) := "101010";  -- 0x2a
     constant F_MUL  : STD_LOGIC_VECTOR(5 downto 0) := "101100";  -- 0x2c
-    -- swap (0x2d) ALU aritmetiği kullanmaz; Faz 5'te ele alınacak.
 
     -- I-type opcode kodları (assembler.py I_OPCODE ile AYNI)
     constant OPC_ADDI  : STD_LOGIC_VECTOR(5 downto 0) := "001000";  -- 0x08
@@ -59,18 +55,14 @@ begin
     begin
         case alu_op is
 
-            -- ── ADD'e zorla ──
             when "00" =>
                 alu_ctrl <= OP_ADD;
 
-            -- ── SUB'a zorla ──
             when "01" =>
                 alu_ctrl <= OP_SUB;
 
-            -- ── Komuta göre çöz ──
-            when others =>   -- "10"
+            when others =>   -- "10": komuta göre çöz
                 if opcode = "000000" then
-                    -- R-type: funct alanına bak
                     case funct is
                         when F_ADD  => alu_ctrl <= OP_ADD;
                         when F_SUB  => alu_ctrl <= OP_SUB;
@@ -79,10 +71,9 @@ begin
                         when F_XOR  => alu_ctrl <= OP_XOR;
                         when F_SLT  => alu_ctrl <= OP_SLT;
                         when F_MUL  => alu_ctrl <= OP_MUL;
-                        when others => alu_ctrl <= OP_ADD;  -- güvenli varsayılan
+                        when others => alu_ctrl <= OP_ADD;
                     end case;
                 else
-                    -- I-type aritmetik: opcode'a bak
                     case opcode is
                         when OPC_ADDI  => alu_ctrl <= OP_ADD;
                         when OPC_SLTI  => alu_ctrl <= OP_SLT;
@@ -90,7 +81,7 @@ begin
                         when OPC_ORI   => alu_ctrl <= OP_OR;
                         when OPC_XORI  => alu_ctrl <= OP_XOR;
                         when OPC_LOADI => alu_ctrl <= OP_ADD;  -- 0 + imm
-                        when others    => alu_ctrl <= OP_ADD;  -- güvenli varsayılan
+                        when others    => alu_ctrl <= OP_ADD;
                     end case;
                 end if;
 
